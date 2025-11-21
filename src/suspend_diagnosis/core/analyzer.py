@@ -129,12 +129,14 @@ class SimpleAnalyzer:
     @staticmethod
     def parse_suspend_failed(dmesg_txt: str, dumpsys_suspend_txt: str, suspend_stats_txt: str = "") -> Tuple[bool, List[str], Dict[str, any]]:
         """
-        Main analysis function following strict 3-step process.
+        Main analysis function following strict 3‑step process.
+        Handles missing log files gracefully – if a file is empty or not provided,
+        the corresponding step is skipped and a note is added to the reasons.
         
         Args:
-            dmesg_txt: Content of dmesg log
-            dumpsys_suspend_txt: Content of dumpsys suspend_control_internal
-            suspend_stats_txt: Content of /d/suspend_stats
+            dmesg_txt: Content of dmesg log (may be empty)
+            dumpsys_suspend_txt: Content of dumpsys suspend_control_internal (may be empty)
+            suspend_stats_txt: Content of /d/suspend_stats (may be empty)
             
         Returns:
             Tuple[bool, List[str], Dict]: (failed, reasons, detailed_analysis)
@@ -148,110 +150,70 @@ class SimpleAnalyzer:
             "conclusion": ""
         }
         
-        # Step 1: Check suspend_stats
-        stats_success, stats_msg = SimpleAnalyzer.analyze_suspend_stats(suspend_stats_txt)
-        detailed_analysis["step1_suspend_stats"] = {
-            "success": stats_success,
-            "message": stats_msg
-        }
-        
-        if stats_success:
-            # Suspend is working, no need to check further
-            detailed_analysis["conclusion"] = "Suspend is working normally. No further analysis needed."
-            return False, ["Suspend is working normally"], detailed_analysis
-        
-        # Suspend failed, continue to Step 2
-        failed = True
-        reasons.append(f"Step 1: {stats_msg}")
-        
-        # Step 2: Check for active wakelocks
-        has_wakelocks, wakelock_list = SimpleAnalyzer.analyze_wakelocks(dumpsys_suspend_txt)
-        detailed_analysis["step2_wakelocks"] = {
-            "has_active": has_wakelocks,
-            "wakelocks": wakelock_list
-        }
-        
-        if has_wakelocks:
-            # Found active wakelocks, this is the root cause
-            reasons.append(f"Step 2: Active wakelocks found: {', '.join(wakelock_list)}")
-            detailed_analysis["conclusion"] = f"Root cause: Active wakelocks preventing suspend: {', '.join(wakelock_list)}"
-            return failed, reasons, detailed_analysis
-        
-        # No active wakelocks, continue to Step 3
-        reasons.append("Step 2: No active wakelocks found")
-        
-        # Step 3: Analyze dmesg
-        dmesg_result = SimpleAnalyzer.analyze_dmesg(dmesg_txt)
-        detailed_analysis["step3_dmesg"] = dmesg_result
-        
-        if not dmesg_result["has_suspend_entry"]:
-            reasons.append("Step 3: No suspend entry found in dmesg - system did not attempt to suspend")
-            detailed_analysis["conclusion"] = "Root cause: System did not attempt to enter suspend"
-        elif dmesg_result["has_suspend_failure"]:
-            reasons.append(f"Step 3: Suspend entry failed - {len(dmesg_result['failure_messages'])} failure(s) found")
-            for msg in dmesg_result["failure_messages"][:3]:  # Show first 3 failures
-                reasons.append(f"  - {msg}")
-            detailed_analysis["conclusion"] = "Root cause: Suspend entry failed in kernel"
+        # Step 1: Check suspend_stats (if available)
+        if suspend_stats_txt.strip():
+            stats_success, stats_msg = SimpleAnalyzer.analyze_suspend_stats(suspend_stats_txt)
+            detailed_analysis["step1_suspend_stats"] = {
+                "success": stats_success,
+                "message": stats_msg
+            }
+            if stats_success:
+                # Suspend is working, no need to check further
+                detailed_analysis["conclusion"] = "Suspend is working normally. No further analysis needed."
+                return False, ["Suspend is working normally"], detailed_analysis
+            # Suspend failed, continue
+            failed = True
+            reasons.append(f"Step 1: {stats_msg}")
         else:
-            reasons.append("Step 3: Suspend entry found but no clear failure in dmesg")
-            detailed_analysis["conclusion"] = "Suspend failed but root cause unclear from logs"
+            # No suspend_stats file – cannot determine step 1, skip but note
+            detailed_analysis["step1_suspend_stats"] = {
+                "success": False,
+                "message": "suspend_stats file not available"
+            }
+            failed = True
+            reasons.append("Step 1: suspend_stats file not available, skipping step 1 analysis")
+        
+        # Step 2: Check for active wakelocks (if file provided)
+        if dumpsys_suspend_txt.strip():
+            has_wakelocks, wakelock_list = SimpleAnalyzer.analyze_wakelocks(dumpsys_suspend_txt)
+            detailed_analysis["step2_wakelocks"] = {
+                "has_active": has_wakelocks,
+                "wakelocks": wakelock_list
+            }
+            if has_wakelocks:
+                reasons.append(f"Step 2: Active wakelocks found: {', '.join(wakelock_list)}")
+                detailed_analysis["conclusion"] = f"Root cause: Active wakelocks preventing suspend: {', '.join(wakelock_list)}"
+                return failed, reasons, detailed_analysis
+            else:
+                reasons.append("Step 2: No active wakelocks found")
+        else:
+            detailed_analysis["step2_wakelocks"] = {
+                "has_active": False,
+                "wakelocks": []
+            }
+            reasons.append("Step 2: dumpsys_suspend.txt not available, skipping wakelock analysis")
+        
+        # Step 3: Analyze dmesg (if file provided)
+        if dmesg_txt.strip():
+            dmesg_result = SimpleAnalyzer.analyze_dmesg(dmesg_txt)
+            detailed_analysis["step3_dmesg"] = dmesg_result
+            if not dmesg_result["has_suspend_entry"]:
+                reasons.append("Step 3: No suspend entry found in dmesg - system did not attempt to suspend")
+                detailed_analysis["conclusion"] = "Root cause: System did not attempt to enter suspend"
+            elif dmesg_result["has_suspend_failure"]:
+                reasons.append(f"Step 3: Suspend entry failed - {len(dmesg_result['failure_messages'])} failure(s) found")
+                for msg in dmesg_result["failure_messages"][:3]:
+                    reasons.append(f"  - {msg}")
+                detailed_analysis["conclusion"] = "Root cause: Suspend entry failed in kernel"
+            else:
+                reasons.append("Step 3: Suspend entry found but no clear failure in dmesg")
+                detailed_analysis["conclusion"] = "Suspend failed but root cause unclear from logs"
+        else:
+            detailed_analysis["step3_dmesg"] = {
+                "has_suspend_entry": False,
+                "has_suspend_failure": False,
+                "failure_messages": []
+            }
+            reasons.append("Step 3: dmesg.txt not available, skipping dmesg analysis")
         
         return failed, reasons, detailed_analysis
-
-    @staticmethod
-    def extract_wakeup_top(ws_txt: str, topn: int = 5) -> List[WakeupSource]:
-        """
-        Parse /sys/kernel/debug/wakeup_sources content and return top wakeup sources.
-        
-        Performs error-tolerant parsing of numeric fields to handle different kernel versions.
-        
-        Args:
-            ws_txt: Content of wakeup_sources file
-            topn: Number of top wakeup sources to return (default: 5)
-            
-        Returns:
-            List[Tuple[str, int, float]]: List of tuples containing:
-                - name: Wakeup source name
-                - active_count: Number of active wakeups
-                - total_time: Total wakeup time
-        """
-        # Filter out empty lines
-        lines = [l for l in ws_txt.splitlines() if l.strip()]
-        if not lines:
-            return []
-
-        # Parse header row to identify column positions
-        header = lines[0].split()
-        tbl: List[WakeupSource] = []
-
-        # Process each data row
-        for l in lines[1:]:
-            cols = l.split()
-            if len(cols) < len(header):
-                continue
-                
-            # Create a dictionary mapping column names to values
-            row = dict(zip(header, cols))
-
-            # Extract name (handle different kernel versions)
-            name = row.get("name") or row.get("wakeup_source") or cols[0]
-
-            # Extract active_count with error handling
-            raw_active = row.get("active_count", "0")
-            m = re.search(r"\d+", raw_active)
-            active = int(m.group()) if m else 0
-
-            # Extract total_time with error handling
-            raw_total = row.get("total_time", "0")
-            # Clean up the value (handle different formats)
-            cleaned = re.sub(r"[^0-9.]", "", raw_total.replace(",", "."))
-            try:
-                total = float(cleaned) if cleaned else 0.0
-            except ValueError:
-                total = 0.0
-
-            tbl.append((name, active, total))
-
-        # Sort by active_count (primary) and total_time (secondary)
-        tbl.sort(key=lambda x: (x[1], x[2]), reverse=True)
-        return tbl[:topn]
