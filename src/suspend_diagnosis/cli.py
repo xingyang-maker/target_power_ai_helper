@@ -40,4 +40,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="QGenie LLM endpoint URL (empty to use default configuration)"
     )
     
+    parser.add_argument(
+        "--case-dir",
+        default="",
+        help="Path to a directory containing pre‑collected log files (overrides ADB collection)"
+    )
+    
     return parser

@@ -25,31 +25,39 @@ def main(args):
     Args:
         args: Command line arguments parsed by argparse
     """
-    # Step 1: Collect evidence from the device
+    # Step 1: Initialize collector
     collector = AdbEvidenceCollector(
         adb=args.adb,
         device=args.device,
         out_dir=args.out,
     )
-    case_dir, artifacts = collector.collect()
     
-    # Step 2: Read collected files
+    # Step 2: Determine source of evidence (ADB collection or existing logs)
+    if args.case_dir:
+        # Load pre‑collected logs from the specified directory
+        case_dir, artifacts = collector.load_existing(args.case_dir)
+    else:
+        # Collect evidence from the device via ADB
+        case_dir, artifacts = collector.collect()
+    
+    # Step 3: Read collected files
     txts = {k: Path(v).read_text(encoding='utf-8', errors='ignore') 
             for k, v in artifacts.items()}
     
-    # Step 3: Analyze logs for suspend failures
+    # Step 3: Analyze logs for suspend failures using 3-step process
     analyzer = SimpleAnalyzer()
-    failed, reasons = analyzer.parse_suspend_failed(
+    failed, reasons, detailed_analysis = analyzer.parse_suspend_failed(
         txts.get("dmesg.txt", ""), 
-        txts.get("dumpsys_suspend.txt", "")
+        txts.get("dumpsys_suspend.txt", ""),
+        txts.get("suspend_stats.txt", "")
     )
     
     # Step 4: AI analysis using QGenieReporter
     reporter = QGenieReporter(endpoint=args.ai_endpoint)
     logs: LogMap = {
-        "dmesg": txts.get("dmesg.txt", "")[:4000],
-        "dumpsys_suspend": txts.get("dumpsys_suspend.txt", "")[:4000],
-        "suspend_stats": txts.get("suspend_stats.txt", "")[:4000],
+        "dmesg": txts.get("dmesg.txt", ""),
+        "dumpsys_suspend": txts.get("dumpsys_suspend.txt", ""),
+        "suspend_stats": txts.get("suspend_stats.txt", ""),
     }
     ai_md = reporter.generate(logs)
     
@@ -59,7 +67,7 @@ def main(args):
     
     # Step 5: Generate Markdown report
     md_builder = MarkdownBuilder()
-    md_path = md_builder.build(case_dir, failed, reasons, ai_md, artifacts)
+    md_path = md_builder.build(case_dir, failed, reasons, ai_md, artifacts, detailed_analysis)
     
     # Step 6: Generate HTML report
     html_renderer = HtmlRenderer()

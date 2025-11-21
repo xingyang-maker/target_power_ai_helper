@@ -38,23 +38,198 @@ class HtmlRenderer:
         # Convert Markdown to HTML
         html_body = markdown.markdown(md_text, extensions=["tables", "fenced_code"])
 
-        # Assemble the complete HTML document
+        # Assemble the complete HTML document with enhanced styling
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Suspend Diagnosis Report</title>
     <style>
-        body {{font-family: Arial, Helvetica, sans-serif; margin: 2rem; line-height: 1.6;}}
-        h1, h2, h3 {{color: #2c3e50;}}
-        pre {{background:#f8f8f8; padding:1rem; overflow:auto;}}
-        table {{border-collapse: collapse; width: 100%;}}
-        th, td {{border: 1px solid #ddd; padding: 8px; text-align: left;}}
-        th {{background:#f2f2f2;}}
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f7fa;
+            padding: 2rem;
+        }}
+        
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }}
+        
+        h1 {{
+            color: #1a202c;
+            border-bottom: 3px solid #3182ce;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+            font-size: 2rem;
+        }}
+        
+        h2 {{
+            color: #2d3748;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            padding: 0.75rem 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 6px;
+            font-size: 1.5rem;
+        }}
+        
+        h3 {{
+            color: #4a5568;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 1.25rem;
+        }}
+        
+        hr {{
+            border: none;
+            border-top: 2px solid #e2e8f0;
+            margin: 2rem 0;
+        }}
+        
+        p {{
+            margin-bottom: 1rem;
+        }}
+        
+        strong {{
+            color: #2d3748;
+            font-weight: 600;
+        }}
+        
+        ul, ol {{
+            margin-left: 2rem;
+            margin-bottom: 1rem;
+        }}
+        
+        li {{
+            margin-bottom: 0.5rem;
+        }}
+        
+        code {{
+            background: #f7fafc;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            color: #e53e3e;
+        }}
+        
+        pre {{
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin-bottom: 1rem;
+        }}
+        
+        pre code {{
+            background: transparent;
+            color: inherit;
+            padding: 0;
+        }}
+        
+        table {{
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 1.5rem;
+            background: white;
+        }}
+        
+        th, td {{
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem;
+            text-align: left;
+        }}
+        
+        th {{
+            background: #edf2f7;
+            font-weight: 600;
+            color: #2d3748;
+        }}
+        
+        tr:hover {{
+            background: #f7fafc;
+        }}
+        
+        .status-success {{
+            color: #38a169;
+            font-weight: bold;
+        }}
+        
+        .status-failure {{
+            color: #e53e3e;
+            font-weight: bold;
+        }}
+        
+        .section-card {{
+            background: #f7fafc;
+            border-left: 4px solid #3182ce;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 4px;
+        }}
+        
+        .finding-item {{
+            background: #fff5f5;
+            border-left: 3px solid #fc8181;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 3px;
+        }}
+        
+        .finding-item.normal {{
+            background: #f0fff4;
+            border-left-color: #68d391;
+        }}
+        
+        .ai-section {{
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 2rem 0;
+        }}
+        
+        .checklist {{
+            background: #fffaf0;
+            border: 2px solid #ed8936;
+            padding: 1.5rem;
+            border-radius: 8px;
+        }}
+        
+        .checklist li {{
+            padding: 0.5rem 0;
+        }}
+        
+        @media print {{
+            body {{
+                background: white;
+                padding: 0;
+            }}
+            .container {{
+                box-shadow: none;
+            }}
+        }}
     </style>
 </head>
 <body>
+    <div class="container">
 {html_body}
+    </div>
 </body>
 </html>"""
 

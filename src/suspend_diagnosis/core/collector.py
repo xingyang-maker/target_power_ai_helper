@@ -76,3 +76,30 @@ class AdbEvidenceCollector:
         _write("suspend_stats.txt", "cat /d/suspend_stats")
 
         return str(case_dir), artifacts
+
+    def load_existing(self, directory: str) -> Tuple[str, ArtifactMap]:
+        """
+        Load pre‑collected log files from a specified directory.
+        
+        The method scans the given directory for the expected evidence files
+        (``suspend_stats.txt``, ``dumpsys_suspend.txt`` and ``dmesg.txt``) and
+        builds an ``ArtifactMap`` that maps each filename to its absolute path.
+        Files that are missing are simply omitted from the map – the downstream
+        analysis code already handles absent artifacts gracefully.
+        
+        Args:
+            directory: Path to the directory containing the log files.
+        
+        Returns:
+            Tuple[str, ArtifactMap]: ``case_dir`` (the absolute path of the
+            provided directory) and ``artifacts`` (a mapping of found filenames
+            to their absolute paths).
+        """
+        case_dir = Path(directory).resolve()
+        artifacts: ArtifactMap = {}
+        expected_files = ["suspend_stats.txt", "dumpsys_suspend.txt", "dmesg.txt"]
+        for name in expected_files:
+            file_path = case_dir / name
+            if file_path.is_file():
+                artifacts[name] = str(file_path)
+        return str(case_dir), artifacts

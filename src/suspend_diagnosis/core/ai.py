@@ -39,12 +39,30 @@ class QGenieReporter:
         Returns:
             Optional[str]: AI-generated analysis text, or None if an error occurred
         """
-        # Construct prompt with length limit
+        # Construct structured prompt for focused analysis
         prompt = (
-            "You are a power consumption and Android kernel expert. Based on the following logs, "
-            "determine if there are any suspend failures and provide actionable remediation suggestions. "
-            "Format your response as: Conclusion/Evidence Summary/Causes/Recommendations.\n\n"
-            + json.dumps(logs, ensure_ascii=False)[:12000]
+            "You are an Android power management and kernel expert. Analyze the following logs in this specific order:\n\n"
+            "**Analysis Steps:**\n"
+            "1. First, check `/d/suspend_stats` to determine if suspend succeeded or failed\n"
+            "   - Look for: success count, fail count, failed_suspend, failed_resume, etc.\n"
+            "   - Report: Whether suspend is working or failing\n\n"
+            "2. Second, check `dumpsys suspend_control_internal` for wakelocks\n"
+            "   - Look for: active wakelocks, last_failed_suspend counter, blocking components\n"
+            "   - Report: If any wakelocks are preventing suspend\n\n"
+            "3. Third, only if suspend failed AND no wakelocks found, analyze `dmesg` for root cause\n"
+            "   - Look for: suspend entry failures, driver errors, kernel messages\n"
+            "   - Report: Specific error messages and failing components\n\n"
+            "**Output Format:**\n"
+            "## Suspend Status\n"
+            "[Based on suspend_stats: success/failure counts and status]\n\n"
+            "## Wakelock Analysis\n"
+            "[Based on dumpsys: any blocking wakelocks or components]\n\n"
+            "## Root Cause (if applicable)\n"
+            "[Based on dmesg: only if suspend failed without wakelocks]\n\n"
+            "## Recommendations\n"
+            "[Specific, actionable steps to fix the issue]\n\n"
+            "**Logs:**\n"
+            + json.dumps(logs, ensure_ascii=False)
         )
 
         try:
