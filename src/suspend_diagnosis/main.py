@@ -30,7 +30,6 @@ def main(args):
         adb=args.adb,
         device=args.device,
         out_dir=args.out,
-        collect_ftrace=args.collect_ftrace,
     )
     case_dir, artifacts = collector.collect()
     
@@ -45,16 +44,12 @@ def main(args):
         txts.get("dumpsys_suspend.txt", "")
     )
     
-    # Step 4: Extract top wakeup sources
-    top_ws = analyzer.extract_wakeup_top(txts.get("wakeup_sources.txt", ""))
-    
-    # Step 5: AI analysis using QGenieReporter
+    # Step 4: AI analysis using QGenieReporter
     reporter = QGenieReporter(endpoint=args.ai_endpoint)
     logs: LogMap = {
         "dmesg": txts.get("dmesg.txt", "")[:4000],
-        "logcat": txts.get("logcat.txt", "")[:4000],
         "dumpsys_suspend": txts.get("dumpsys_suspend.txt", "")[:4000],
-        "wakeup_sources": txts.get("wakeup_sources.txt", "")[:4000],
+        "suspend_stats": txts.get("suspend_stats.txt", "")[:4000],
     }
     ai_md = reporter.generate(logs)
     
@@ -62,13 +57,13 @@ def main(args):
         print("\n[AI RESPONSE]")
         print(ai_md)
     
-    # Step 6: Generate Markdown report
+    # Step 5: Generate Markdown report
     md_builder = MarkdownBuilder()
-    md_path = md_builder.build(case_dir, failed, reasons, top_ws, ai_md, artifacts)
+    md_path = md_builder.build(case_dir, failed, reasons, ai_md, artifacts)
     
-    # Step 7: Generate HTML report with charts
+    # Step 6: Generate HTML report
     html_renderer = HtmlRenderer()
-    html_path = html_renderer.render(md_path, top_ws)
+    html_path = html_renderer.render(md_path)
     
     print(f"\n[REPORT] Generated: {html_path}")
     return html_path

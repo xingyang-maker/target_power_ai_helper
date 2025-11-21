@@ -27,7 +27,6 @@ class AdbEvidenceCollector:
         adb: str = "adb",
         device: str = "",
         out_dir: str = "./reports",
-        collect_ftrace: bool = False,
     ):
         """
         Initialize the evidence collector.
@@ -36,12 +35,10 @@ class AdbEvidenceCollector:
             adb: Path to ADB executable (default: 'adb')
             device: Target device serial number (empty for default device)
             out_dir: Output directory for collected files (default: './reports')
-            collect_ftrace: Whether to collect ftrace data (default: False)
         """
         self.adb = adb
         self.device = device
         self.out_dir = out_dir
-        self.collect_ftrace = collect_ftrace
 
     def collect(self) -> Tuple[str, ArtifactMap]:
         """
@@ -73,15 +70,9 @@ class AdbEvidenceCollector:
             content = adb_shell(self.adb, self.device, cmd)
             Path(path).write_text(content, encoding="utf-8")
 
-        # Collect standard evidence files
-        _write("logcat.txt", "logcat -d -v time -t 5m")
+        # Collect only three essential evidence files
         _write("dmesg.txt", "dmesg -T")
         _write("dumpsys_suspend.txt", "dumpsys suspend_control_internal")
-        _write("dumpsys_power.txt", "dumpsys power")
-        _write("wakeup_sources.txt", "cat /sys/kernel/debug/wakeup_sources")
-
-        # Collect ftrace if requested
-        if self.collect_ftrace:
-            _write("ftrace_suspend.txt", "cat /sys/kernel/tracing/trace")
+        _write("suspend_stats.txt", "cat /d/suspend_stats")
 
         return str(case_dir), artifacts

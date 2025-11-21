@@ -40,10 +40,4 @@ def build_parser() -> argparse.ArgumentParser:
         help="QGenie LLM endpoint URL (empty to use default configuration)"
     )
     
-    parser.add_argument(
-        "--collect-ftrace", 
-        action="store_true",
-        help="Collect ftrace data from /sys/kernel/tracing/trace"
-    )
-    
     return parser

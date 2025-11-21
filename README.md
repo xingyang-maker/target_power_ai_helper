@@ -6,18 +6,18 @@ A command-line tool for diagnosing Android device suspend issues by collecting a
 
 This tool helps diagnose Android suspend-related issues by:
 
-1. Collecting relevant logs from an Android device using ADB
+1. Collecting essential logs from an Android device using ADB
 2. Analyzing logs to detect suspend failures
-3. Identifying top wakeup sources that may be preventing suspend
-4. Generating comprehensive reports in both Markdown and HTML formats
-5. Providing AI-powered analysis of the collected logs (optional)
+3. Generating comprehensive reports in both Markdown and HTML formats
+4. Providing AI-powered analysis of the collected logs (optional)
 
 ## Features
 
-- Collects multiple log files (logcat, dmesg, dumpsys, wakeup sources)
+- Collects three essential evidence files:
+  - `dmesg.txt` - Kernel messages
+  - `dumpsys_suspend.txt` - Suspend control internal state
+  - `suspend_stats.txt` - Suspend statistics from `/d/suspend_stats`
 - Detects suspend failures based on known patterns
-- Identifies and ranks top wakeup sources
-- Generates visual charts of wakeup source activity
 - Provides AI-powered analysis and recommendations (requires QGenie)
 - Outputs both Markdown and HTML reports
 
@@ -71,16 +71,16 @@ This tool helps diagnose Android suspend-related issues by:
 
 ## Usage
 
-Basic usage (if installed as package):
+Basic usage:
+
+```bash
+python bin/suspend_diagnosis
+```
+
+Or if installed as a package:
 
 ```bash
 suspend-diagnosis
-```
-
-Or using the convenience script:
-
-```bash
-python bin/run_diagnosis
 ```
 
 This will collect logs from the default connected device and generate a report in the `./reports` directory.
@@ -88,7 +88,7 @@ This will collect logs from the default connected device and generate a report i
 ### Command-line Options
 
 ```
-usage: suspend-diagnosis [-h] [--adb ADB] [--device DEVICE] [--out OUT] [--ai-endpoint AI_ENDPOINT] [--collect-ftrace]
+usage: suspend-diagnosis [-h] [--adb ADB] [--device DEVICE] [--out OUT] [--ai-endpoint AI_ENDPOINT]
 
 Android Suspend Diagnosis Tool
 
@@ -99,29 +99,23 @@ options:
   --out OUT             Output directory for reports (default: './reports')
   --ai-endpoint AI_ENDPOINT
                         QGenie LLM endpoint URL (empty to use default configuration)
-  --collect-ftrace      Collect ftrace data from /sys/kernel/tracing/trace
 ```
 
 ### Examples
 
 Collect logs from a specific device:
 ```bash
-suspend-diagnosis --device DEVICE_SERIAL_NUMBER
+python bin/suspend_diagnosis --device DEVICE_SERIAL_NUMBER
 ```
 
-Or using the convenience script:
+Or if installed as a package:
 ```bash
-python bin/run_diagnosis --device DEVICE_SERIAL_NUMBER
+suspend-diagnosis --device DEVICE_SERIAL_NUMBER
 ```
 
 Specify a custom output directory:
 ```bash
 suspend-diagnosis --out /path/to/output/directory
-```
-
-Collect additional ftrace data:
-```bash
-suspend-diagnosis --collect-ftrace
 ```
 
 ## Report Structure
@@ -130,10 +124,9 @@ The generated reports include:
 
 1. **Conclusion** - Whether a suspend failure was detected
 2. **Rule-based Criteria** - Specific reasons for the failure determination
-3. **Potential Blocking Wakeup Sources** - Top wakeup sources that may be preventing suspend
-4. **Evidence Files** - List of collected log files
-5. **AI Analysis** (if available) - AI-powered analysis and recommendations
-6. **Verification Checklist** - Steps to verify that the issue has been resolved
+3. **Evidence Files** - List of collected log files (dmesg.txt, dumpsys_suspend.txt, suspend_stats.txt)
+4. **AI Analysis** (if available) - AI-powered analysis and recommendations
+5. **Verification Checklist** - Steps to verify that the issue has been resolved
 
 ## Project Structure
 
@@ -158,8 +151,7 @@ The generated reports include:
 │           ├── __init__.py
 │           └── types.py    # Type definitions
 ├── bin/                    # Executable scripts
-│   ├── suspend_diagnosis   # Main entry point script
-│   └── run_diagnosis       # Convenience script
+│   └── suspend_diagnosis   # Main entry point script
 ├── reports/                # Generated reports (default location)
 ├── README.md               # Documentation
 ├── requirements.txt        # Dependencies

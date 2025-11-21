@@ -22,7 +22,6 @@ class MarkdownBuilder:
         case_dir: str,
         failed: bool,
         reasons: List[str],
-        top_ws: List[WakeupSource],
         ai_md: Optional[str],
         artifacts: ArtifactMap,
     ) -> str:
@@ -33,7 +32,6 @@ class MarkdownBuilder:
             case_dir: Directory containing collected evidence
             failed: Whether suspend failure was detected
             reasons: List of reasons for suspend failure
-            top_ws: List of top wakeup sources (name, active_count, total_time)
             ai_md: AI-generated analysis text (if available)
             artifacts: Dictionary mapping filenames to their paths
             
@@ -48,15 +46,7 @@ class MarkdownBuilder:
             ("**Assessment**: Suspend failure detected\n\n" if failed else "**Assessment**: No clear suspend failure detected\n\n"),
             "### Rule-based Criteria\n",
             "- " + "\n- ".join(reasons) if reasons else "- No significant failure indicators",
-            "\n\n## Potential Blocking Wakeup Sources (Top)\n",
         ]
-
-        # Add wakeup sources section
-        if top_ws:
-            for name, active, total in top_ws:
-                md.append(f"- `{name}` active_count={active}, total_time={total}")
-        else:
-            md.append("- No data or unable to parse wakeup_sources header")
 
         # Add evidence files section
         md.append("\n\n## Evidence Files\n")

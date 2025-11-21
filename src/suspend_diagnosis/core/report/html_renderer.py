@@ -21,13 +21,12 @@ class HtmlRenderer:
     Returns the path to the generated HTML file.
     """
 
-    def render(self, md_path: str, top_ws: List[WakeupSource]) -> str:
+    def render(self, md_path: str) -> str:
         """
-        Convert a Markdown report to HTML and add visualizations.
+        Convert a Markdown report to HTML.
         
         Args:
             md_path: Path to the Markdown file
-            top_ws: List of top wakeup sources (name, active_count, total_time)
             
         Returns:
             str: Path to the generated HTML file
@@ -38,40 +37,6 @@ class HtmlRenderer:
         
         # Convert Markdown to HTML
         html_body = markdown.markdown(md_text, extensions=["tables", "fenced_code"])
-
-        # Generate chart for wakeup sources
-        img_tag = ""
-        if top_ws:
-            # Extract data for the chart
-            names = [n for n, _, _ in top_ws]
-            actives = [a for _, a, _ in top_ws]
-            totals = [t for _, _, t in top_ws]
-
-            # Create a figure with two Y axes
-            fig, ax1 = plt.subplots(figsize=(8, 4))
-            
-            # Bar chart for active_count
-            ax1.bar(names, actives, color="#1f77b4", label="active_count")
-            ax1.set_ylabel("active_count", color="#1f77b4")
-            ax1.tick_params(axis="x", rotation=45)
-
-            # Line chart for total_time on secondary Y axis
-            ax2 = ax1.twinx()
-            ax2.plot(names, totals, color="#ff7f0e", marker="o", label="total_time")
-            ax2.set_ylabel("total_time", color="#ff7f0e")
-            
-            plt.title("Top Wakeup Sources")
-            plt.tight_layout()
-
-            # Convert the plot to a base64-encoded image
-            buf = io.BytesIO()
-            plt.savefig(buf, format="png")
-            plt.close(fig)
-            buf.seek(0)
-            b64 = base64.b64encode(buf.read()).decode()
-            
-            # Create an HTML img tag with the embedded image
-            img_tag = f'<h2>Top Wakeup Sources Chart</h2><img src="data:image/png;base64,{b64}" alt="wakeup sources"/>'
 
         # Assemble the complete HTML document
         html = f"""<!DOCTYPE html>
@@ -90,7 +55,6 @@ class HtmlRenderer:
 </head>
 <body>
 {html_body}
-{img_tag}
 </body>
 </html>"""
 
