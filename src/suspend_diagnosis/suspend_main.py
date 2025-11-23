@@ -16,7 +16,7 @@ from suspend_diagnosis.core.ai import QGenieReporter
 from suspend_diagnosis.core.report.markdown_builder import MarkdownBuilder
 from suspend_diagnosis.core.report.html_renderer import HtmlRenderer
 from suspend_diagnosis.cli import build_parser
-from suspend_diagnosis.models.types import LogMap
+from common.types import LogMap
 
 def main(args):
     """

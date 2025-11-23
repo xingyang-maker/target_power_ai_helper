@@ -12,7 +12,7 @@ from typing import List
 import markdown
 import matplotlib.pyplot as plt
 
-from suspend_diagnosis.models.types import WakeupSource
+from common.types import WakeupSource
 
 
 class HtmlRenderer:

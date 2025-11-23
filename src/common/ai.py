@@ -8,7 +8,7 @@ import json
 from typing import Optional
 
 from qgenie import ChatMessage, QGenieClient
-from suspend_diagnosis.models.types import LogMap
+from common.types import LogMap
 
 
 class QGenieReporter:

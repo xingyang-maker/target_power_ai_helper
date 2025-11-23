@@ -8,7 +8,7 @@ import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from suspend_diagnosis.models.types import WakeupSource, ArtifactMap
+from common.types import WakeupSource, ArtifactMap
 
 
 class MarkdownBuilder:

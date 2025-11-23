@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Tuple
 
 from suspend_diagnosis.core.utils import adb_shell
-from suspend_diagnosis.models.types import ArtifactMap
+from common.types import ArtifactMap
 
 
 class AdbEvidenceCollector:

@@ -8,7 +8,7 @@ and extract information about wakeup sources.
 import re
 from typing import List, Tuple, Dict
 
-from suspend_diagnosis.models.types import WakeupSource, SuspendAnalysisResult
+from common.types import WakeupSource, SuspendAnalysisResult
 
 
 class SimpleAnalyzer:
