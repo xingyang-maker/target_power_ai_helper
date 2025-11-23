@@ -6,20 +6,26 @@ A command-line tool for diagnosing Android device suspend issues by collecting a
 
 This tool helps diagnose Android suspend-related issues by:
 
-1. Collecting essential logs from an Android device using ADB
-2. Analyzing logs to detect suspend failures
-3. Generating comprehensive reports in both Markdown and HTML formats
-4. Providing AI-powered analysis of the collected logs (optional)
+1. **Analyzing existing logs** from a local directory (primary use case)
+2. **Collecting fresh logs** from an Android device using ADB (when needed)
+3. Detecting suspend failures using a systematic 3-step analysis process
+4. Generating comprehensive reports in both Markdown and HTML formats
+5. Providing AI-powered analysis and recommendations (optional)
 
 ## Features
 
-- Collects three essential evidence files:
+- **Analyze pre-collected logs**: Point to any directory containing suspend-related log files
+- **Collect fresh logs**: Automatically gather logs from connected Android devices via ADB
+- **3-step analysis process**: 
+  - Step 1: Check suspend statistics (`/d/suspend_stats`)
+  - Step 2: Analyze wakelocks (`dumpsys suspend_control_internal`)
+  - Step 3: Examine kernel messages (`dmesg`)
+- **Multiple output formats**: Generate both Markdown and HTML reports
+- **AI-powered insights**: Get detailed analysis and recommendations (requires QGenie)
+- **Flexible input**: Works with three essential log files:
   - `dmesg.txt` - Kernel messages
-  - `dumpsys_suspend.txt` - Suspend control internal state
+  - `dumpsys_suspend.txt` - Suspend control internal state  
   - `suspend_stats.txt` - Suspend statistics from `/d/suspend_stats`
-- Detects suspend failures based on known patterns
-- Provides AI-powered analysis and recommendations (requires QGenie)
-- Outputs both Markdown and HTML reports
 
 ## Requirements
 
