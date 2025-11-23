@@ -37,7 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--case-dir",
         default="",
-        help="Path to a directory containing pre-collected log files (dmesg.txt, dumpsys_suspend.txt, suspend_stats.txt). When specified, analyzes existing logs instead of collecting from device."
+        help="Path to a directory containing pre-collected log files (dmesg.txt, dumpsys_suspend.txt, suspend_stats.txt). Files can be partial - the tool will analyze whatever logs are available and skip missing ones."
     )
     
     return parser

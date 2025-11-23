@@ -58,34 +58,49 @@ class MarkdownBuilder:
         
         md.append("---\n\n")
         
-        # Step 1: Suspend Stats Analysis
-        md.append("## Step 1️⃣: Suspend Statistics Check\n")
-        md.append("**Purpose**: Check if suspend succeeded or failed  \n")
-        md.append("**File**: `/d/suspend_stats` → `suspend_stats.txt`\n\n")
+        # Determine which files are available based on artifacts and detailed_analysis
+        has_suspend_stats = "suspend_stats.txt" in artifacts
+        has_dumpsys = "dumpsys_suspend.txt" in artifacts  
+        has_dmesg = "dmesg.txt" in artifacts
         
-        if detailed_analysis and "step1_suspend_stats" in detailed_analysis:
-            step1 = detailed_analysis["step1_suspend_stats"]
-            if step1.get("success"):
-                md.append("✅ **Result**: Suspend is working normally\n")
-                md.append(f"- {step1.get('message', 'No details available')}\n")
-                md.append("- **Analysis stops here** - No further investigation needed\n\n")
-            else:
-                md.append("❌ **Result**: Suspend has failures\n")
-                md.append(f"- {step1.get('message', 'No details available')}\n")
-                md.append("- **Continue to Step 2** - Check for wakelocks\n\n")
+        # Also check if the analysis was actually performed (file had content)
+        if detailed_analysis:
+            step1_performed = (detailed_analysis.get("step1_suspend_stats", {}).get("message", "") != "suspend_stats file not available")
+            step2_performed = not any("dumpsys_suspend.txt not available" in r for r in reasons)
+            step3_performed = not any("dmesg.txt not available" in r for r in reasons)
         else:
-            step1_reasons = [r for r in reasons if "Step 1" in r]
-            if step1_reasons:
-                md.append("❌ **Result**: Suspend has failures\n")
-                for reason in step1_reasons:
-                    md.append(f"- {reason}\n")
-            else:
-                md.append("⚠️ **Result**: Unable to determine suspend status\n")
+            step1_performed = has_suspend_stats
+            step2_performed = has_dumpsys
+            step3_performed = has_dmesg
         
-        # 原始 Suspend Stats 日志（仅在 suspend 失败时展示） 
-        if ( (detailed_analysis and "step1_suspend_stats" in detailed_analysis and not detailed_analysis["step1_suspend_stats"].get("success")) 
-                 or (step1_reasons) ):
-            if "suspend_stats.txt" in artifacts:
+        # Step 1: Suspend Stats Analysis (only if file is available)
+        if has_suspend_stats and step1_performed:
+            md.append("## Step 1️⃣: Suspend Statistics Check\n")
+            md.append("**Purpose**: Check if suspend succeeded or failed  \n")
+            md.append("**File**: `/d/suspend_stats` → `suspend_stats.txt`\n\n")
+            
+            if detailed_analysis and "step1_suspend_stats" in detailed_analysis:
+                step1 = detailed_analysis["step1_suspend_stats"]
+                if step1.get("success"):
+                    md.append("✅ **Result**: Suspend is working normally\n")
+                    md.append(f"- {step1.get('message', 'No details available')}\n")
+                    md.append("- **Analysis stops here** - No further investigation needed\n\n")
+                else:
+                    md.append("❌ **Result**: Suspend has failures\n")
+                    md.append(f"- {step1.get('message', 'No details available')}\n")
+                    md.append("- **Continue to Step 2** - Check for wakelocks\n\n")
+            else:
+                step1_reasons = [r for r in reasons if "Step 1" in r]
+                if step1_reasons:
+                    md.append("❌ **Result**: Suspend has failures\n")
+                    for reason in step1_reasons:
+                        md.append(f"- {reason}\n")
+                else:
+                    md.append("⚠️ **Result**: Unable to determine suspend status\n")
+            
+            # 原始 Suspend Stats 日志（仅在 suspend 失败时展示） 
+            if ( (detailed_analysis and "step1_suspend_stats" in detailed_analysis and not detailed_analysis["step1_suspend_stats"].get("success")) 
+                     or (step1_reasons) ):
                 try:
                     raw = Path(artifacts["suspend_stats.txt"]).read_text(encoding="utf-8", errors="ignore")
                     lines = raw.splitlines()
@@ -103,43 +118,43 @@ class MarkdownBuilder:
                     md.append("\n```\n\n")
                 except Exception:
                     pass
-        md.append("---\n\n")
+            md.append("---\n\n")
         
-        # Step 2: Wakelock Analysis (only if Step 1 failed)
-        md.append("## Step 2️⃣: Wakelock Analysis\n")
-        md.append("**Purpose**: Check for active wakelocks preventing suspend  \n")
-        md.append("**File**: `dumpsys suspend_control_internal` → `dumpsys_suspend.txt`\n\n")
-        
-        if detailed_analysis and "step2_wakelocks" in detailed_analysis:
-            step2 = detailed_analysis["step2_wakelocks"]
-            if step2.get("has_active"):
-                wakelocks = step2.get("wakelocks", [])
-                md.append("❌ **Result**: Active wakelocks found (ROOT CAUSE)\n")
-                md.append("**Active Wakelocks**:\n")
-                for wakelock in wakelocks:
-                    md.append(f"- `{wakelock}`\n")
-                md.append("\n**Analysis stops here** - Root cause identified\n\n")
+        # Step 2: Wakelock Analysis (only if file is available)
+        if has_dumpsys and step2_performed:
+            md.append("## Step 2️⃣: Wakelock Analysis\n")
+            md.append("**Purpose**: Check for active wakelocks preventing suspend  \n")
+            md.append("**File**: `dumpsys suspend_control_internal` → `dumpsys_suspend.txt`\n\n")
+            
+            if detailed_analysis and "step2_wakelocks" in detailed_analysis:
+                step2 = detailed_analysis["step2_wakelocks"]
+                if step2.get("has_active"):
+                    wakelocks = step2.get("wakelocks", [])
+                    md.append("❌ **Result**: Active wakelocks found (ROOT CAUSE)\n")
+                    md.append("**Active Wakelocks**:\n")
+                    for wakelock in wakelocks:
+                        md.append(f"- `{wakelock}`\n")
+                    md.append("\n**Analysis stops here** - Root cause identified\n\n")
+                else:
+                    md.append("✅ **Result**: No active wakelocks found\n")
+                    md.append("- All wakelocks are in 'Inactive' state\n")
+                    md.append("- **Continue to Step 3** - Check kernel logs\n\n")
             else:
-                md.append("✅ **Result**: No active wakelocks found\n")
-                md.append("- All wakelocks are in 'Inactive' state\n")
-                md.append("- **Continue to Step 3** - Check kernel logs\n\n")
-        else:
-            step2_reasons = [r for r in reasons if "Step 2" in r]
-            if any("Active wakelocks found" in r for r in step2_reasons):
-                md.append("❌ **Result**: Active wakelocks found (ROOT CAUSE)\n")
-                for reason in step2_reasons:
-                    if "Active wakelocks found" in reason:
+                step2_reasons = [r for r in reasons if "Step 2" in r and "not available" not in r]
+                if any("Active wakelocks found" in r for r in step2_reasons):
+                    md.append("❌ **Result**: Active wakelocks found (ROOT CAUSE)\n")
+                    for reason in step2_reasons:
+                        if "Active wakelocks found" in reason:
+                            md.append(f"- {reason}\n")
+                elif step2_reasons:
+                    md.append("✅ **Result**: No active wakelocks found\n")
+                    for reason in step2_reasons:
                         md.append(f"- {reason}\n")
-            elif step2_reasons:
-                md.append("✅ **Result**: No active wakelocks found\n")
-                for reason in step2_reasons:
-                    md.append(f"- {reason}\n")
-            else:
-                md.append("⚠️ **Result**: Wakelock analysis not performed\n")
-        
-        # 原始 Wakelock Dump 日志（仅在检测到活跃 wakelock 时展示）
-        if detailed_analysis and "step2_wakelocks" in detailed_analysis and detailed_analysis["step2_wakelocks"].get("has_active"):
-            if "dumpsys_suspend.txt" in artifacts:
+                else:
+                    md.append("⚠️ **Result**: Wakelock analysis not performed\n")
+            
+            # 原始 Wakelock Dump 日志（仅在检测到活跃 wakelock 时展示）
+            if detailed_analysis and "step2_wakelocks" in detailed_analysis and detailed_analysis["step2_wakelocks"].get("has_active"):
                 try:
                     raw = Path(artifacts["dumpsys_suspend.txt"]).read_text(encoding="utf-8", errors="ignore")
                     lines = raw.splitlines()
@@ -156,48 +171,48 @@ class MarkdownBuilder:
                     md.append("\n```\n\n")
                 except Exception:
                     pass
-        md.append("---\n\n")
+            md.append("---\n\n")
         
-        # Step 3: Kernel Log Analysis (only if Steps 1&2 didn't find root cause)
-        md.append("## Step 3️⃣: Kernel Log Analysis\n")
-        md.append("**Purpose**: Check for suspend entry and failure details  \n")
-        md.append("**File**: `dmesg -T` → `dmesg.txt`\n\n")
-        
-        if detailed_analysis and "step3_dmesg" in detailed_analysis:
-            step3 = detailed_analysis["step3_dmesg"]
-            if not step3.get("has_suspend_entry"):
-                md.append("❌ **Result**: No suspend entry found\n")
-                md.append("- System did not attempt to enter suspend\n")
-                md.append("- Check if suspend is triggered properly\n\n")
-            elif step3.get("has_suspend_failure"):
-                md.append("❌ **Result**: Suspend entry failed in kernel\n")
-                md.append("**Failure Messages**:\n")
-                for msg in step3.get("failure_messages", [])[:3]:
-                    md.append(f"- `{msg}`\n")
-                md.append("\n")
-            else:
-                md.append("✅ **Result**: Suspend entry found, no clear failures\n")
-                md.append("- Suspend process appears normal in kernel logs\n")
-                md.append("- Root cause may be elsewhere\n\n")
-        else:
-            step3_reasons = [r for r in reasons if "Step 3" in r]
-            if step3_reasons:
-                if any("No suspend entry found" in r for r in step3_reasons):
+        # Step 3: Kernel Log Analysis (only if file is available)
+        if has_dmesg and step3_performed:
+            md.append("## Step 3️⃣: Kernel Log Analysis\n")
+            md.append("**Purpose**: Check for suspend entry and failure details  \n")
+            md.append("**File**: `dmesg -T` → `dmesg.txt`\n\n")
+            
+            if detailed_analysis and "step3_dmesg" in detailed_analysis:
+                step3 = detailed_analysis["step3_dmesg"]
+                if not step3.get("has_suspend_entry"):
                     md.append("❌ **Result**: No suspend entry found\n")
-                elif any("Suspend entry failed" in r for r in step3_reasons):
+                    md.append("- System did not attempt to enter suspend\n")
+                    md.append("- Check if suspend is triggered properly\n\n")
+                elif step3.get("has_suspend_failure"):
                     md.append("❌ **Result**: Suspend entry failed in kernel\n")
+                    md.append("**Failure Messages**:\n")
+                    for msg in step3.get("failure_messages", [])[:3]:
+                        md.append(f"- `{msg}`\n")
+                    md.append("\n")
                 else:
-                    md.append("✅ **Result**: Kernel log analyzed\n")
-                for reason in step3_reasons:
-                    md.append(f"- {reason}\n")
+                    md.append("✅ **Result**: Suspend entry found, no clear failures\n")
+                    md.append("- Suspend process appears normal in kernel logs\n")
+                    md.append("- Root cause may be elsewhere\n\n")
             else:
-                md.append("⚠️ **Result**: Kernel log analysis not performed\n")
-        
-        # 原始 dmesg 日志（仅在 suspend 入口缺失或失败时展示）
-        if detailed_analysis and "step3_dmesg" in detailed_analysis:
-            step3 = detailed_analysis["step3_dmesg"]
-            if not step3.get("has_suspend_entry") or step3.get("has_suspend_failure"):
-                if "dmesg.txt" in artifacts:
+                step3_reasons = [r for r in reasons if "Step 3" in r and "not available" not in r]
+                if step3_reasons:
+                    if any("No suspend entry found" in r for r in step3_reasons):
+                        md.append("❌ **Result**: No suspend entry found\n")
+                    elif any("Suspend entry failed" in r for r in step3_reasons):
+                        md.append("❌ **Result**: Suspend entry failed in kernel\n")
+                    else:
+                        md.append("✅ **Result**: Kernel log analyzed\n")
+                    for reason in step3_reasons:
+                        md.append(f"- {reason}\n")
+                else:
+                    md.append("⚠️ **Result**: Kernel log analysis not performed\n")
+            
+            # 原始 dmesg 日志（仅在 suspend 入口缺失或失败时展示）
+            if detailed_analysis and "step3_dmesg" in detailed_analysis:
+                step3 = detailed_analysis["step3_dmesg"]
+                if not step3.get("has_suspend_entry") or step3.get("has_suspend_failure"):
                     try:
                         raw = Path(artifacts["dmesg.txt"]).read_text(encoding="utf-8", errors="ignore")
                         lines = raw.splitlines()
@@ -214,7 +229,7 @@ class MarkdownBuilder:
                         md.append("\n```\n\n")
                     except Exception:
                         pass
-        md.append("---\n\n")
+            md.append("---\n\n")
         # 总结
         md.append("## 📋 总结\n")
         if detailed_analysis and detailed_analysis.get("conclusion"):

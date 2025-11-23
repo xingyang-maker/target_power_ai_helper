@@ -150,8 +150,18 @@ class SimpleAnalyzer:
             "conclusion": ""
         }
         
+        # Check which files are available
+        has_suspend_stats = bool(suspend_stats_txt.strip())
+        has_dumpsys = bool(dumpsys_suspend_txt.strip())
+        has_dmesg = bool(dmesg_txt.strip())
+        
+        # If no files are available, return early
+        if not (has_suspend_stats or has_dumpsys or has_dmesg):
+            detailed_analysis["conclusion"] = "No log files available for analysis"
+            return False, ["No log files available for analysis"], detailed_analysis
+        
         # Step 1: Check suspend_stats (if available)
-        if suspend_stats_txt.strip():
+        if has_suspend_stats:
             stats_success, stats_msg = SimpleAnalyzer.analyze_suspend_stats(suspend_stats_txt)
             detailed_analysis["step1_suspend_stats"] = {
                 "success": stats_success,
@@ -170,17 +180,17 @@ class SimpleAnalyzer:
                 "success": False,
                 "message": "suspend_stats file not available"
             }
-            failed = True
             reasons.append("Step 1: suspend_stats file not available, skipping step 1 analysis")
         
-        # Step 2: Check for active wakelocks (if file provided)
-        if dumpsys_suspend_txt.strip():
+        # Step 2: Check for active wakelocks (if file provided and step 1 failed)
+        if has_dumpsys:
             has_wakelocks, wakelock_list = SimpleAnalyzer.analyze_wakelocks(dumpsys_suspend_txt)
             detailed_analysis["step2_wakelocks"] = {
                 "has_active": has_wakelocks,
                 "wakelocks": wakelock_list
             }
             if has_wakelocks:
+                failed = True
                 reasons.append(f"Step 2: Active wakelocks found: {', '.join(wakelock_list)}")
                 detailed_analysis["conclusion"] = f"Root cause: Active wakelocks preventing suspend: {', '.join(wakelock_list)}"
                 return failed, reasons, detailed_analysis
@@ -194,20 +204,27 @@ class SimpleAnalyzer:
             reasons.append("Step 2: dumpsys_suspend.txt not available, skipping wakelock analysis")
         
         # Step 3: Analyze dmesg (if file provided)
-        if dmesg_txt.strip():
+        if has_dmesg:
             dmesg_result = SimpleAnalyzer.analyze_dmesg(dmesg_txt)
             detailed_analysis["step3_dmesg"] = dmesg_result
             if not dmesg_result["has_suspend_entry"]:
+                failed = True
                 reasons.append("Step 3: No suspend entry found in dmesg - system did not attempt to suspend")
                 detailed_analysis["conclusion"] = "Root cause: System did not attempt to enter suspend"
             elif dmesg_result["has_suspend_failure"]:
+                failed = True
                 reasons.append(f"Step 3: Suspend entry failed - {len(dmesg_result['failure_messages'])} failure(s) found")
                 for msg in dmesg_result["failure_messages"][:3]:
                     reasons.append(f"  - {msg}")
                 detailed_analysis["conclusion"] = "Root cause: Suspend entry failed in kernel"
             else:
                 reasons.append("Step 3: Suspend entry found but no clear failure in dmesg")
-                detailed_analysis["conclusion"] = "Suspend failed but root cause unclear from logs"
+                # Only set conclusion if we haven't found a clear root cause yet
+                if not detailed_analysis["conclusion"]:
+                    if has_suspend_stats or has_dumpsys:
+                        detailed_analysis["conclusion"] = "Suspend failed but root cause unclear from logs"
+                    else:
+                        detailed_analysis["conclusion"] = "Based on dmesg only: Suspend entry found but no clear failure"
         else:
             detailed_analysis["step3_dmesg"] = {
                 "has_suspend_entry": False,
@@ -215,5 +232,12 @@ class SimpleAnalyzer:
                 "failure_messages": []
             }
             reasons.append("Step 3: dmesg.txt not available, skipping dmesg analysis")
+        
+        # Set final conclusion if not already set
+        if not detailed_analysis["conclusion"]:
+            if failed:
+                detailed_analysis["conclusion"] = "Suspend analysis incomplete due to missing log files"
+            else:
+                detailed_analysis["conclusion"] = "No clear suspend issues found in available logs"
         
         return failed, reasons, detailed_analysis

@@ -106,8 +106,8 @@ options:
   --out OUT             Output directory for reports (default: './reports')
   --case-dir CASE_DIR   Path to a directory containing pre-collected log files 
                         (dmesg.txt, dumpsys_suspend.txt, suspend_stats.txt).
-                        When specified, the tool will analyze existing logs 
-                        instead of collecting new ones from a device.
+                        Files can be partial - the tool will analyze whatever 
+                        logs are available and skip missing ones.
 ```
 
 ### Examples
