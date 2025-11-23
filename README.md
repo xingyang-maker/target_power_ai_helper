@@ -27,6 +27,33 @@ This tool helps diagnose Android suspend-related issues by:
   - `dumpsys_suspend.txt` - Suspend control internal state  
   - `suspend_stats.txt` - Suspend statistics from `/d/suspend_stats`
 
+## 📋 Log Collection Guide
+
+For detailed instructions on how to properly collect the required log files, see: **[LOG_COLLECTION_GUIDE.md](LOG_COLLECTION_GUIDE.md)**
+
+This guide covers:
+- Step-by-step log collection procedures
+- Required permissions and device setup
+- Common issues and troubleshooting
+- Log quality verification
+- Best practices for different scenarios
+
+### Quick Log Collection
+
+We provide convenient scripts for quick log collection:
+
+**Windows:**
+```cmd
+scripts\collect_logs.bat
+```
+
+**Linux/macOS:**
+```bash
+./scripts/collect_logs.sh
+```
+
+These scripts automatically handle device detection, permission checks, and collect all required log files with quality verification.
+
 ## Requirements
 
 - Python 3.9+
